@@ -32,56 +32,37 @@ void setup() {
   Serial.print(F("portTICK_PERIOD_MS=")); Serial.println(portTICK_PERIOD_MS);
   Serial.print(F("configMAX_PRIORITIES=")); Serial.println(configMAX_PRIORITIES);
   Serial.print(F("configMINIMAL_STACK_SIZE=")); Serial.println(configMINIMAL_STACK_SIZE);
-  // Now set up two tasks to run independently.
-  //  xTaskCreate(
-  //   TaskBlink
-  //   ,  "Blink"   // A name just for humans
-  //   ,  96 -50 // This stack size can be checked & adjusted by reading the Stack Highwater
-  //   ,  NULL //Parameters passed to the task function
-  //   ,  0  // Priority, with 2 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
-  //   ,  &taskBlink_Handler );//Task handle
+
 
   // We have approx 1624 bytes
   // We have 6 task running more or less so we CANNOT allocate 
   // apporx more than 200 bytes per thread.
   // If we keep low the thread count we can have interesting effects on the go
+  // Stack allocation is way more safer than heap allocation, if correctly tuned
 
-
-  xTaskCreate(TaskMelodyBase
-    ,"Melody"
-    ,256-155
-    , (void*) 2
-    , 2
-    ,&taskMelodyBase_Handler);
+  // xTaskCreate(TaskMelodyBase
+  //   ,"Melody"
+  //   ,256-155
+  //   , (void*) 2
+  //   , 2
+  //   ,&taskMelodyBase_Handler);
 
   const uint16_t faderStackSize=66;
-  // Fade dancer task to kill
-  xTaskCreate(
-    TaskFadeDance
-    ,"F9"
-    ,faderStackSize
-    ,( void * ) 9
-    ,1
-    ,&fadeDance_Handler1);
 
-  xTaskCreate(
-    TaskFadeDance
-    ,"F10"
-    ,faderStackSize
-    ,( void * ) 10
-    , 1 
-    ,&fadeDance_Handler2);
-
-//  Too little memory for another thread
-  xTaskCreate(
-    TaskFadeDance
-    ,"F3"
-    ,faderStackSize
-    ,( void * ) 6
-    , 1
-    ,&fadeDance_Handler3);
+  xTaskCreate(TaskFadeCycle, "DNC", faderStackSize, NULL, 0, &fadeDance_Handler1);
   
+  // TODO: Create a task to detect the press of a button, to change the effect taking the next effect in a list
+  // 
+  // // Fade dancer task to kill
+  // xTaskCreate(
+  //   TaskFadeDance
+  //   ,"F9"
+  //   ,faderStackSize
+  //   ,( void * ) 9
+  //   ,1
+  //   ,&fadeDance_Handler1);
 
+ 
 
   if(DEBUG_MODE){
     xTaskCreate(TaskSystemStatus
@@ -148,12 +129,68 @@ void TaskBlink(void *pvParameters)  // This is a low priority task.
   }
 }
 
+
+/////// Wiring here is imortant
+const uint8_t OrderedLeds[]={3,/*5,*/10,9,11,6};
+
+// lights turn on on a cycle
+void TaskFadeCycle(void *pvParameters){
+
+  // Wiring order is important
+  int brightness = 0;  // how bright the LED is
+  int fadeAmount = 5;  // how many points to fade the LED by
+  
+  for(auto l: OrderedLeds){ pinMode(l,OUTPUT); }
+  uint8_t previousLed=11;
+  const uint8_t dimValue=32, maxValue=255;
+  for(;;){
+    // Dim all led
+    for(auto currentLed: OrderedLeds ){
+      analogWrite(currentLed,dimValue);
+    }
+    // Emulate a bouncing ball of light
+    vTaskDelay(400/portTICK_PERIOD_MS);
+    for(auto currentLed: OrderedLeds ){
+      analogWrite(currentLed,maxValue);
+      analogWrite(previousLed,dimValue);
+      previousLed=currentLed;
+      vTaskDelay(300/portTICK_PERIOD_MS);
+    }
+  }
+
+}
+
+void TaskFadeSyncro(void *pvParameters){
+  int brightness = 0;  // how bright the LED is
+  int fadeAmount = 5;  // how many points to fade the LED by
+  for(auto l: OrderedLeds){ pinMode(l,OUTPUT); }
+
+  for(;;){
+    for(auto ledx: OrderedLeds ){
+      analogWrite(ledx, brightness);
+
+      // change the brightness for next time through the loop:
+      brightness = brightness + fadeAmount;
+
+      // reverse the direction of the fading at the ends of the fade:
+      if (brightness <= 0 || brightness >= 255) {
+        fadeAmount = -fadeAmount;
+      }
+      // wait for 30 milliseconds to see the dimming effect
+      vTaskDelay(30/portTICK_PERIOD_MS);
+    
+    }
+  }
+}
+
+
+
 /** Generic Fading procedure
  */
 void TaskFadeDance(void *pvParameters){
   const int led = ( uint32_t ) pvParameters;         // the PWM pin the LED is attached to
   int brightness = 0;  // how bright the LED is
-  int fadeAmount = 10;  // how many points to fade the LED by
+  int fadeAmount = 5;  // how many points to fade the LED by
   pinMode(led, OUTPUT);
   for(;;){
       // set the brightness of pin 9:

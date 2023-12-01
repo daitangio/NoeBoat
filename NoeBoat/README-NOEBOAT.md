@@ -7,7 +7,7 @@ Add music and be happy
 # Overall Led connections:
 
 - Pin 2 is used for melody tone
-- Pin 6,9,10 Fading Major Led
+- Pin 3,6,9,10,11 Fading Major Led
 - Pin 13 Operation Led: just use for ACK board is working
 
 Pin 3,11 cannot be used because used by tone() function
