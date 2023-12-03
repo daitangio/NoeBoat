@@ -15,7 +15,7 @@ options:
         - Updated
         - Included
         - Typo
-        - Merge
+        # - Merge
         - Added
     #   - feat
     #     - perf

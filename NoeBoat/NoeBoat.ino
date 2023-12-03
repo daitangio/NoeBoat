@@ -6,27 +6,24 @@
 
 /// Wiring
 const int potPin = A0;  
+const int modeButtonPin=7;
 /////// Wiring here is imortant
 const uint8_t OrderedLeds[]={3,/*5,*/10,9,11,6};
 
-////
+//// Internal config do not edit from this point...normally
+const uint16_t FaderStackSize=64;
 
 //define task handles
-TaskHandle_t taskBlink_Handler;
 TaskHandle_t fadeDance_Handler1;
+TaskHandle_t fadeTaskFadeSyncro_Handler ; // TaskFadeSyncro
 
-TaskHandle_t taskMelodyBase_Handler;
+//TaskHandle_t taskMelodyBase_Handler;
 
-TaskHandle_t* listOfHandler2Monitor[]={
-  //&taskBlink_Handler
-  &taskMelodyBase_Handler
-  ,&fadeDance_Handler1
-  // ,&taskMelodyBase_Handler
-};
 
 // define overall tasks
 void TaskBlink( void *pvParameters );
 void TaskSystemStatus(void* pvParameters);
+void TaskDebugButton(void *pvParameters);
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -38,7 +35,7 @@ void setup() {
   Serial.print(F("configMAX_PRIORITIES=")); Serial.println(configMAX_PRIORITIES);
   Serial.print(F("configMINIMAL_STACK_SIZE=")); Serial.println(configMINIMAL_STACK_SIZE);
 
-
+  pinMode(modeButtonPin,INPUT);
   // We have approx 1624 bytes
   // We have 6 task running more or less so we CANNOT allocate 
   // apporx more than 200 bytes per thread.
@@ -52,14 +49,15 @@ void setup() {
   //   , 2
   //   ,&taskMelodyBase_Handler);
 
-  const uint16_t faderStackSize=64;
 
-  xTaskCreate(TaskFadeCycle, "DNC", faderStackSize, NULL, 0, &fadeDance_Handler1);
-  
+
+  xTaskCreate(TaskFadeCycle, "DNC", FaderStackSize, NULL, 0, &fadeDance_Handler1);
+  xTaskCreate(TaskModeSwitch,"SWC", FaderStackSize, NULL, 3, NULL);  
   // TODO: Create a task to detect the press of a button, to change the effect taking the next effect in a list
   
   if(DEBUG_MODE){
     xTaskCreate(TaskSystemStatus
+      // TaskDebugButton // TaskSystemStatus
       , NULL
       , 200
       , NULL
@@ -72,7 +70,6 @@ void setup() {
   vTaskStartScheduler();
 }
 
-
     
 // configUSE_IDLE_HOOK=0 so we does not need a loop
 // void loop()
@@ -80,7 +77,7 @@ void setup() {
 //   // Empty. Things are done in Tasks.
 // }
 
-// Support functions
+//////////////  Support functions
 
 /** 8bit resolution potentiometer read.
  */
@@ -88,14 +85,77 @@ inline uint8_t readPot(){
   return analogRead(potPin) / 4;
 }
 
+// Bug it is not working right now
+inline boolean buttonPressed(){
+  if(digitalRead(modeButtonPin) == HIGH) {
+    return true;
+  }else{
+    return false;
+  }
+}
+
 /*--------------------------------------------------*/
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
 
 
+// Mode switch:
+enum BoatMode: uint8_t { CyclePot=0, Fading=1};
+BoatMode CurrentMode=CyclePot;
+
+/** This is an high priority task. We try to detect a button press every 200 milliseconds, because human are slow.
+ * We NEED to delay to give a chance to all the system to run.
+ */
+void TaskModeSwitch(void *pvParameters){
+  Serial.println(F("Task Mode Switch Ready"));
+  for(;;){  
+    delay(200);
+    if(buttonPressed()){
+      switch (CurrentMode) {
+      case CyclePot:
+        // Switch to new mode
+        Serial.println(F("Switch to CyclePot"));
+        // Kill old Task
+        vTaskDelete(fadeDance_Handler1);
+        // Create fadeTaskFadeSyncro_Handler
+        xTaskCreate(TaskFadeSyncro, "SYNC", FaderStackSize, NULL, 0, &fadeTaskFadeSyncro_Handler);
+        // Init new mode
+        CurrentMode=Fading;
+        break;
+      case Fading:
+        Serial.println(F("Come back to Fading"));
+        vTaskDelete(fadeTaskFadeSyncro_Handler);
+        xTaskCreate(TaskFadeCycle, "DNC", FaderStackSize, NULL, 0, &fadeDance_Handler1);
+        CurrentMode=CyclePot;
+        break;
+      default:
+        break;
+      }
+      
+    }
+  }
+}
+
+// void TaskDebugButton(void *pvParameters){
+//   for(;;){
+//     Serial.print(F("BUTTON:"));
+//     Serial.print( buttonPressed()? "PRESSED!! ": "NOT_PRESSED " );
+//     Serial.print(F(" POT:"));
+//     Serial.println(readPot());
+//     delay(300);
+//   }
+// }
+
+
 void TaskSystemStatus(void *pvParameters){
   (void) pvParameters;
   for(;;){
+    // The list printing is a bit bugged, because these handlers are pointers
+    // and if a task is destroyed the pointer could be invalidated
+    TaskHandle_t* listOfHandler2Monitor[]={
+      &fadeDance_Handler1
+      ,&fadeTaskFadeSyncro_Handler
+    };
     Serial.println(F(__FILE__));
     Serial.println(F("======== Tasks status ========"));
     Serial.print(F("Tick count: "));
@@ -103,7 +163,18 @@ void TaskSystemStatus(void *pvParameters){
     Serial.print(F(", Task count: "));
     Serial.println(uxTaskGetNumberOfTasks());
 
-    Serial.print("POT:");
+
+    // Print Mode
+    switch(CurrentMode){
+      case CyclePot:
+        Serial.println(F("Cycle Ball Mode"));
+        break;
+      case Fading:
+        Serial.println(F("Fading Mode"));
+    }
+
+
+    Serial.print(F(" POT:"));
     Serial.println(readPot());
 
     // Lower the Mark, more probable a overflow

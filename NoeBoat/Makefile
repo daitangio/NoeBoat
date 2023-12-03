@@ -124,12 +124,6 @@ compile: $(ELF)
 
 $(ELF): $(SRC) $(HDRS)
 	arduino-cli compile -b $(FQBN) $(VFLAG)
-	@if which arduino-manifest.pl; \
-	then echo "---> Generating manifest.txt"; \
-	arduino-manifest.pl -b $(FQBN) $(SRC) $(HDRS) > manifest.txt; \
-	else echo "---> If you want to generate manifest.txt, listing used libraries and their versions,"; \
-	echo "---> please install arduino-manifest, see https://github.com/digiampietro/arduino-manifest"; \
-	fi
 
 help:
 	@echo "Usage example"
