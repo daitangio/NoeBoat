@@ -52,7 +52,8 @@ void setup() {
   xTaskCreate(TaskFadeCycle, "DNC", faderStackSize, NULL, 0, &fadeDance_Handler1);
   
   // TODO: Create a task to detect the press of a button, to change the effect taking the next effect in a list
-  // 
+  // TODO2: Use a potentiometer to change the overall max fading value
+  
   // // Fade dancer task to kill
   // xTaskCreate(
   //   TaskFadeDance
@@ -90,7 +91,7 @@ void setup() {
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
 
-
+const int potPin = A0;  
 void TaskSystemStatus(void *pvParameters){
   (void) pvParameters;
   for(;;){
@@ -99,6 +100,11 @@ void TaskSystemStatus(void *pvParameters){
     Serial.print(xTaskGetTickCount());
     Serial.print(F(", Task count: "));
     Serial.println(uxTaskGetNumberOfTasks());
+
+    int potentiometerValue=analogRead(potPin) / 4;
+
+    Serial.print("POT:");
+    Serial.println(potentiometerValue);
 
     // Lower the Mark, more probable a overflow
     Serial.println(F("== High Watermarks =="));    
@@ -142,19 +148,25 @@ void TaskFadeCycle(void *pvParameters){
   
   for(auto l: OrderedLeds){ pinMode(l,OUTPUT); }
   uint8_t previousLed=11;
-  const uint8_t dimValue=32, maxValue=255;
+  
+  // use potentiometer to drive it
+  uint8_t maxValue=255;
   for(;;){
+    uint8_t dimValue=analogRead(potPin) / 4;
     // Dim all led
     for(auto currentLed: OrderedLeds ){
       analogWrite(currentLed,dimValue);
     }
     // Emulate a bouncing ball of light
     vTaskDelay(400/portTICK_PERIOD_MS);
+    // Reread the value
+    dimValue=analogRead(potPin) / 4;
     for(auto currentLed: OrderedLeds ){
       analogWrite(currentLed,maxValue);
       analogWrite(previousLed,dimValue);
       previousLed=currentLed;
       vTaskDelay(300/portTICK_PERIOD_MS);
+      dimValue=analogRead(potPin) / 4;
     }
   }
 
