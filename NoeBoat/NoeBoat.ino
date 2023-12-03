@@ -4,11 +4,16 @@
 // FreeRTOS@10.5.1-1
 #include "src/Arduino_FreeRTOS.h"
 
+/// Wiring
+const int potPin = A0;  
+/////// Wiring here is imortant
+const uint8_t OrderedLeds[]={3,/*5,*/10,9,11,6};
 
+////
 
 //define task handles
 TaskHandle_t taskBlink_Handler;
-TaskHandle_t fadeDance_Handler1, fadeDance_Handler2, fadeDance_Handler3; // Very simple fading
+TaskHandle_t fadeDance_Handler1;
 
 TaskHandle_t taskMelodyBase_Handler;
 
@@ -16,8 +21,7 @@ TaskHandle_t* listOfHandler2Monitor[]={
   //&taskBlink_Handler
   &taskMelodyBase_Handler
   ,&fadeDance_Handler1
-  ,&fadeDance_Handler2
-  ,&fadeDance_Handler3 // ,&taskMelodyBase_Handler
+  // ,&taskMelodyBase_Handler
 };
 
 // define overall tasks
@@ -28,6 +32,7 @@ void TaskSystemStatus(void* pvParameters);
 void setup() {
   // initialize serial communication at 9600 bits per second:
   Serial.begin(57600);
+
   // normally configMAX_PRIORITIES=5
   Serial.print(F("portTICK_PERIOD_MS=")); Serial.println(portTICK_PERIOD_MS);
   Serial.print(F("configMAX_PRIORITIES=")); Serial.println(configMAX_PRIORITIES);
@@ -47,24 +52,12 @@ void setup() {
   //   , 2
   //   ,&taskMelodyBase_Handler);
 
-  const uint16_t faderStackSize=66;
+  const uint16_t faderStackSize=64;
 
   xTaskCreate(TaskFadeCycle, "DNC", faderStackSize, NULL, 0, &fadeDance_Handler1);
   
   // TODO: Create a task to detect the press of a button, to change the effect taking the next effect in a list
-  // TODO2: Use a potentiometer to change the overall max fading value
   
-  // // Fade dancer task to kill
-  // xTaskCreate(
-  //   TaskFadeDance
-  //   ,"F9"
-  //   ,faderStackSize
-  //   ,( void * ) 9
-  //   ,1
-  //   ,&fadeDance_Handler1);
-
- 
-
   if(DEBUG_MODE){
     xTaskCreate(TaskSystemStatus
       , NULL
@@ -87,11 +80,19 @@ void setup() {
 //   // Empty. Things are done in Tasks.
 // }
 
+// Support functions
+
+/** 8bit resolution potentiometer read.
+ */
+inline uint8_t readPot(){
+  return analogRead(potPin) / 4;
+}
+
 /*--------------------------------------------------*/
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
 
-const int potPin = A0;  
+
 void TaskSystemStatus(void *pvParameters){
   (void) pvParameters;
   for(;;){
@@ -101,10 +102,8 @@ void TaskSystemStatus(void *pvParameters){
     Serial.print(F(", Task count: "));
     Serial.println(uxTaskGetNumberOfTasks());
 
-    int potentiometerValue=analogRead(potPin) / 4;
-
     Serial.print("POT:");
-    Serial.println(potentiometerValue);
+    Serial.println(readPot());
 
     // Lower the Mark, more probable a overflow
     Serial.println(F("== High Watermarks =="));    
@@ -136,8 +135,7 @@ void TaskBlink(void *pvParameters)  // This is a low priority task.
 }
 
 
-/////// Wiring here is imortant
-const uint8_t OrderedLeds[]={3,/*5,*/10,9,11,6};
+
 
 // lights turn on on a cycle
 void TaskFadeCycle(void *pvParameters){
@@ -152,21 +150,19 @@ void TaskFadeCycle(void *pvParameters){
   // use potentiometer to drive it
   uint8_t maxValue=255;
   for(;;){
-    uint8_t dimValue=analogRead(potPin) / 4;
+    uint8_t dimValue=readPot();
     // Dim all led
     for(auto currentLed: OrderedLeds ){
       analogWrite(currentLed,dimValue);
     }
     // Emulate a bouncing ball of light
-    vTaskDelay(400/portTICK_PERIOD_MS);
-    // Reread the value
-    dimValue=analogRead(potPin) / 4;
+    vTaskDelay(300/portTICK_PERIOD_MS);
+
     for(auto currentLed: OrderedLeds ){
       analogWrite(currentLed,maxValue);
-      analogWrite(previousLed,dimValue);
+      analogWrite(previousLed,readPot());
       previousLed=currentLed;
-      vTaskDelay(300/portTICK_PERIOD_MS);
-      dimValue=analogRead(potPin) / 4;
+      vTaskDelay(200/portTICK_PERIOD_MS);      
     }
   }
 
