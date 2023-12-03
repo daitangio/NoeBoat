@@ -10,6 +10,10 @@ Add music and be happy
 - Pin 3,6,9,10,11 Fading Major Led
 - Pin 13 Operation Led: just use for ACK board is working
 
-Pin 3,11 cannot be used because used by tone() function
+Controls:
+- Pin A0 is linked to a potentiometer
+- 
+
+Remember: PWM conflicts for pin 3,11 when using tone() function (it uses the related pwm interrupt)
 
 
