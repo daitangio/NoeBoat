@@ -16,6 +16,7 @@ options:
         - Included
         - Typo
         - Merge
+        - Added
     #   - feat
     #     - perf
     #     - refactor

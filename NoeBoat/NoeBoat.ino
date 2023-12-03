@@ -96,6 +96,7 @@ inline uint8_t readPot(){
 void TaskSystemStatus(void *pvParameters){
   (void) pvParameters;
   for(;;){
+    Serial.println(F(__FILE__));
     Serial.println(F("======== Tasks status ========"));
     Serial.print(F("Tick count: "));
     Serial.print(xTaskGetTickCount());
