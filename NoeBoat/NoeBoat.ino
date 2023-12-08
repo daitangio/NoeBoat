@@ -48,7 +48,6 @@ void setup() {
 
 
   xTaskCreate(TaskFadeOneByOne,"FBO", FaderStackSize, NULL,0, &majorTaskHandler);
-//  xTaskCreate(TaskFadeCycle, "DNC", FaderStackSize, NULL, 0, &majorTaskHandler);
   xTaskCreate(TaskModeSwitch,"SWC", FaderStackSize, NULL, 3, NULL);  
   // TODO: Create a task to detect the press of a button, to change the effect taking the next effect in a list
   
@@ -92,13 +91,28 @@ inline boolean buttonPressed(){
 }
 
 /*--------------------------------------------------*/
-/*---------------------- Tasks ---------------------*/
+/*------------------ Tasks Organization ------------*/
 /*--------------------------------------------------*/
 
 
 // Mode switch:
 enum BoatMode: uint8_t { CyclePot=0, Fading=1, FadeOneByOne=2};
-BoatMode CurrentMode=CyclePot;
+
+struct TaskInfo {
+  const char * const name;
+  TaskFunction_t taskFunction;
+};
+
+/**
+ * This constant structure can map every Mode to the Function
+ */
+const TaskInfo Mode2Task[]= {
+  {"CP", TaskFadeSyncro},
+  {"F",   TaskFadeCycle},
+  {"1By1", TaskFadeOneByOne}
+};
+
+BoatMode CurrentMode=FadeOneByOne;
 
 /** This is an high priority task. We try to detect a button press every 200 milliseconds, because human are slow.
  * We NEED to delay to give a chance to all the system to run.
@@ -108,47 +122,27 @@ void TaskModeSwitch(void *pvParameters){
   for(;;){  
     delay(200);
     if(buttonPressed()){
-      switch (CurrentMode) {
-      case CyclePot:
-        // Switch to new mode Fading
-        Serial.println(F("Switch to TaskFadeSyncro"));
-        // Kill old Task
-        vTaskDelete(majorTaskHandler);
-        // Create fadeTaskFadeSyncro_Handler
-        xTaskCreate(TaskFadeSyncro, "SYNC", FaderStackSize, NULL, 0, &majorTaskHandler);
-        // Init new mode
-        CurrentMode=Fading;
-        delay(100);
-        break;
-      case Fading:
-        Serial.println(F("Come back to TaskFadeCycle"));
-        vTaskDelete(majorTaskHandler);
-        xTaskCreate(TaskFadeCycle, "DNC", FaderStackSize, NULL, 0, &majorTaskHandler);
-        CurrentMode=CyclePot;
-        delay(100);
-        break;
-      case FadeOneByOne:
-          // Todo add
-          // xTaskCreate(TaskFadeOneByOne,"FBO", FaderStackSize, NULL,0, &majorTaskHandler);
 
-        break;
-      default:
-        break;
+      vTaskDelete(majorTaskHandler);
+      Serial.print(F("From ")); Serial.print(Mode2Task[CurrentMode].name);
+      Serial.print(F(" to "));
+      // Increment mode
+      if(CurrentMode==FadeOneByOne){
+        CurrentMode=CyclePot;
+      }else{
+        CurrentMode=CurrentMode+1;
       }
+      Serial.println( Mode2Task[CurrentMode].name );
+      xTaskCreate( Mode2Task[CurrentMode].taskFunction,  Mode2Task[CurrentMode].name , FaderStackSize, NULL, 0, &majorTaskHandler);
+      delay(100);
       
     }
   }
 }
 
-// void TaskDebugButton(void *pvParameters){
-//   for(;;){
-//     Serial.print(F("BUTTON:"));
-//     Serial.print( buttonPressed()? "PRESSED!! ": "NOT_PRESSED " );
-//     Serial.print(F(" POT:"));
-//     Serial.println(readPot());
-//     delay(300);
-//   }
-// }
+/*--------------------------------------------------*/
+/*------------------ Led Tasks ---------------------*/
+/*--------------------------------------------------*/
 
 
 void TaskSystemStatus(void *pvParameters){
@@ -191,7 +185,7 @@ void TaskSystemStatus(void *pvParameters){
     Serial.println();
     Serial.println();
     
-    vTaskDelay( (7* 1000)/  portTICK_PERIOD_MS);
+    vTaskDelay( (15* 1000)/  portTICK_PERIOD_MS);
   }
 }
 
@@ -270,7 +264,7 @@ void TaskFadeSyncro(void *pvParameters){
 void TaskFadeOneByOne(void *pvParmeters){
 
   const int FADE_AMOUNT=7;
-  for(auto l: OrderedLeds){ pinMode(l,OUTPUT); }
+  for(auto l: OrderedLeds){ pinMode(l,OUTPUT); analogWrite(l,0);}
 
   for(;;){
     for(auto ledx: OrderedLeds ){
@@ -289,29 +283,6 @@ void TaskFadeOneByOne(void *pvParmeters){
     
 
   }
-}
-/** Generic Fading procedure
- */
-void TaskFadeDance(void *pvParameters){
-  const int led = ( uint32_t ) pvParameters;         // the PWM pin the LED is attached to
-  int brightness = 0;  // how bright the LED is
-  int fadeAmount = 5;  // how many points to fade the LED by
-  pinMode(led, OUTPUT);
-  for(;;){
-      // set the brightness of pin 9:
-      analogWrite(led, brightness);
-
-      // change the brightness for next time through the loop:
-      brightness = brightness + fadeAmount;
-
-      // reverse the direction of the fading at the ends of the fade:
-      if (brightness <= 0 || brightness >= 255) {
-        fadeAmount = -fadeAmount;
-      }
-      // wait for 30 milliseconds to see the dimming effect
-      vTaskDelay(30/portTICK_PERIOD_MS);
-  }
-
 }
 
 
