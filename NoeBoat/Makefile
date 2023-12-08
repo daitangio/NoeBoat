@@ -1,5 +1,5 @@
 ## Taken from https://github.com/digiampietro/arduino-makefile/
-SERIAL_DEV=/dev/cu.usbmodem2101
+SERIAL_DEV=/dev/cu.usbmodem22401
 FQBN=arduino:avr:uno
 # Makefile for Arduino based scketches
 #

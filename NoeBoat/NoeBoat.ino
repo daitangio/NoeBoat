@@ -8,16 +8,13 @@
 const int potPin = A0;  
 const int modeButtonPin=7;
 /////// Wiring here is imortant
-const uint8_t OrderedLeds[]={3,/*5,*/10,9,11,6};
+const uint8_t OrderedLeds[]={6,11,9,10,3 };
 
 //// Internal config do not edit from this point...normally
 const uint16_t FaderStackSize=64;
 
 //define task handles
-TaskHandle_t fadeDance_Handler1;
-TaskHandle_t fadeTaskFadeSyncro_Handler ; // TaskFadeSyncro
-
-//TaskHandle_t taskMelodyBase_Handler;
+TaskHandle_t majorTaskHandler;
 
 
 // define overall tasks
@@ -50,8 +47,8 @@ void setup() {
   //   ,&taskMelodyBase_Handler);
 
 
-
-  xTaskCreate(TaskFadeCycle, "DNC", FaderStackSize, NULL, 0, &fadeDance_Handler1);
+  xTaskCreate(TaskFadeOneByOne,"FBO", FaderStackSize, NULL,0, &majorTaskHandler);
+//  xTaskCreate(TaskFadeCycle, "DNC", FaderStackSize, NULL, 0, &majorTaskHandler);
   xTaskCreate(TaskModeSwitch,"SWC", FaderStackSize, NULL, 3, NULL);  
   // TODO: Create a task to detect the press of a button, to change the effect taking the next effect in a list
   
@@ -100,7 +97,7 @@ inline boolean buttonPressed(){
 
 
 // Mode switch:
-enum BoatMode: uint8_t { CyclePot=0, Fading=1};
+enum BoatMode: uint8_t { CyclePot=0, Fading=1, FadeOneByOne=2};
 BoatMode CurrentMode=CyclePot;
 
 /** This is an high priority task. We try to detect a button press every 200 milliseconds, because human are slow.
@@ -113,20 +110,27 @@ void TaskModeSwitch(void *pvParameters){
     if(buttonPressed()){
       switch (CurrentMode) {
       case CyclePot:
-        // Switch to new mode
-        Serial.println(F("Switch to CyclePot"));
+        // Switch to new mode Fading
+        Serial.println(F("Switch to TaskFadeSyncro"));
         // Kill old Task
-        vTaskDelete(fadeDance_Handler1);
+        vTaskDelete(majorTaskHandler);
         // Create fadeTaskFadeSyncro_Handler
-        xTaskCreate(TaskFadeSyncro, "SYNC", FaderStackSize, NULL, 0, &fadeTaskFadeSyncro_Handler);
+        xTaskCreate(TaskFadeSyncro, "SYNC", FaderStackSize, NULL, 0, &majorTaskHandler);
         // Init new mode
         CurrentMode=Fading;
+        delay(100);
         break;
       case Fading:
-        Serial.println(F("Come back to Fading"));
-        vTaskDelete(fadeTaskFadeSyncro_Handler);
-        xTaskCreate(TaskFadeCycle, "DNC", FaderStackSize, NULL, 0, &fadeDance_Handler1);
+        Serial.println(F("Come back to TaskFadeCycle"));
+        vTaskDelete(majorTaskHandler);
+        xTaskCreate(TaskFadeCycle, "DNC", FaderStackSize, NULL, 0, &majorTaskHandler);
         CurrentMode=CyclePot;
+        delay(100);
+        break;
+      case FadeOneByOne:
+          // Todo add
+          // xTaskCreate(TaskFadeOneByOne,"FBO", FaderStackSize, NULL,0, &majorTaskHandler);
+
         break;
       default:
         break;
@@ -153,8 +157,7 @@ void TaskSystemStatus(void *pvParameters){
     // The list printing is a bit bugged, because these handlers are pointers
     // and if a task is destroyed the pointer could be invalidated
     TaskHandle_t* listOfHandler2Monitor[]={
-      &fadeDance_Handler1
-      ,&fadeTaskFadeSyncro_Handler
+      &majorTaskHandler     
     };
     Serial.println(F(__FILE__));
     Serial.println(F("======== Tasks status ========"));
@@ -188,7 +191,7 @@ void TaskSystemStatus(void *pvParameters){
     Serial.println();
     Serial.println();
     
-    vTaskDelay( (5* 1000)/  portTICK_PERIOD_MS);
+    vTaskDelay( (7* 1000)/  portTICK_PERIOD_MS);
   }
 }
 
@@ -264,7 +267,29 @@ void TaskFadeSyncro(void *pvParameters){
 }
 
 
+void TaskFadeOneByOne(void *pvParmeters){
 
+  const int FADE_AMOUNT=7;
+  for(auto l: OrderedLeds){ pinMode(l,OUTPUT); }
+
+  for(;;){
+    for(auto ledx: OrderedLeds ){
+      analogWrite(ledx, 0);
+      for(int fadeAmount=5; fadeAmount < 255; fadeAmount+=FADE_AMOUNT){
+        analogWrite(ledx,fadeAmount);
+        vTaskDelay(2);
+      }
+      // Now turn off in turn
+      for(int fadeAmount=255; fadeAmount > 0; fadeAmount-=FADE_AMOUNT){
+        analogWrite(ledx,fadeAmount);
+        vTaskDelay(2);
+      }      
+      analogWrite(ledx, 0);
+    }
+    
+
+  }
+}
 /** Generic Fading procedure
  */
 void TaskFadeDance(void *pvParameters){
@@ -288,6 +313,11 @@ void TaskFadeDance(void *pvParameters){
   }
 
 }
+
+
+
+
+
 ////////// Melody
 // notes in the melody:
 #include "pitches.h"
