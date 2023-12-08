@@ -1,9 +1,14 @@
-<a name="unreleased"></a>
-## [Unreleased]
 
+<a name="1.0.2"></a>
+## [1.0.2](https://github.com/daitangio/NoeBoat/compare/1.0.1...1.0.2) (2023-12-08)
+
+### Added
+
+* Added feature: Fade one by one + reorg of task switch mode
 
 ### Updated
-- Updated changelog and readme
+
+* Updated changelog and readme
 
 
 <a name="1.0.1"></a>
