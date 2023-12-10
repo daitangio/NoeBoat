@@ -2,7 +2,7 @@
 
 #include "noeboat_config.h"
 // FreeRTOS@10.5.1-1
-#include "src/Arduino_FreeRTOS.h"
+#include "Arduino_FreeRTOS.h"
 
 /// Wiring
 const int potPin = A0;  

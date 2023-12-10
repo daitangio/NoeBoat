@@ -123,7 +123,7 @@ compile: $(ELF)
 .PHONY: compile
 
 $(ELF): $(SRC) $(HDRS)
-	arduino-cli compile -b $(FQBN) $(VFLAG)
+	arduino-cli compile --libraries ../libraries -b $(FQBN) $(VFLAG)
 
 help:
 	@echo "Usage example"
