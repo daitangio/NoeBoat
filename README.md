@@ -1,13 +1,14 @@
 # NoeBoat
-Arduino Based lamp based on a wooden toy
+Arduino Based lamp based on a wooden toy.
+Works with all Arduino Uno variant so far, from R1 to R4 WiFi
 
-Refer to https://gioorgi.com/category/projects/arduino/noeboat/
+Refer to https://gioorgi.com/tag/noeboat/
 for a list of article describing the goals of the project.
 
 # For developers
 
 ## How to compile
-Install arduino-cli and gnu-make then enters inside NoeBoat and type
+Install arduino-cli and gnu-make, then enters inside NoeBoat and type
     
     make help
 
