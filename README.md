@@ -1,24 +1,12 @@
-# NoeBoat
-Arduino Based lamp based on a wooden toy.
-Works with all Arduino Uno variant so far, from R1 to R4 WiFi
+Two projects here
 
-Refer to https://gioorgi.com/tag/noeboat/
-for a list of article describing the goals of the project.
+- [NoeBoat]
+  Arduino Based lamp based on a wooden toy, designed around 2023
 
-# For developers
 
-## How to compile
-Install arduino-cli and gnu-make, then enters inside NoeBoat and type
-    
-    make help
+- MagiLamp
+  New 2026 project
 
-To a list of options.
+## References
 
-Also the sketch should work with Arduino IDE 2.x and 1.8.+ too
-Please keep in mind an Arduino R1-R3 is needed.
-
-To use Arduion R4 or WiFi, try deleting src folder to use the FreeRTOS included in the official Arduino IDE.
-
-## How to release a change:
-
-    git-chglog >CHANGELOG.md
+NoeBoat: file://./NoeBoat/README.md
