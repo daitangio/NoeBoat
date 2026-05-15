@@ -37,30 +37,24 @@ void TaskBlink( void *pvParameters );
 void TaskCloudConnect(void* pvParameters);
 void TaskSystemStatus(void* pvParameters);
 
+
+const char bootTextLogo[] = "S@f";
+
 ArduinoLEDMatrix matrix;
-void bootText(){
 
-    matrix.begin();
 
-    matrix.beginDraw();
-    matrix.stroke(0xFFFFFFFF);
-    // add some static text to signal booting  
-    const char text[] = "S@f";
-    matrix.textFont(Font_4x6);
-    matrix.beginText(0, 1, 0xFFFFFF);
-    matrix.println(text);
-    matrix.endText();
-
-    matrix.endDraw();
-
-}
-
-// the setup function runs once when you press reset or power the board
+/***
+ * Important note:
+ * Stack memory is very tight
+ * If you allocate too much memory, the system will crash and will be unable to proceed
+ * You can detect it because the debug monitor will not print the task name
+ * 
+ */
 void setup() {
   // initialize serial communication at 9600 bits per second:
   Serial.begin(57600);
-  
-  bootText();
+  matrix.begin();
+
   // normally configMAX_PRIORITIES=5
   
   // Now set up two tasks to run independently.
@@ -73,21 +67,20 @@ void setup() {
     ,  &taskBlink_Handler );//Task handle
 
 
-
-
+/*
   xTaskCreate(TaskMelodyBase
     ,"Melody"
     ,256-155
     , (void*) 2 // pin 
     , 2
     ,&taskMelodyBase_Handler);
-
-
+*/
+  const int stack=190;
   // Two fade dancer task to kill
   xTaskCreate(
     TaskFadeDance
     ,"FadeDance9"
-    ,156-80
+    ,stack
     ,( void * ) 9
     ,1
     ,&fadeDance_Handler1);
@@ -96,7 +89,7 @@ void setup() {
   xTaskCreate(
     TaskFadeDance
     ,"FadeDance10"
-    ,156-80
+    ,stack
     ,( void * ) 10
     , 1 
     ,&fadeDance_Handler2);
@@ -105,13 +98,12 @@ void setup() {
   xTaskCreate(
     TaskFadeDance
     ,"FadeDance3"
-    ,156-80
+    ,stack
     ,( void * ) 6
     , 1
     ,&fadeDance_Handler3);
 
-
-  // xTaskCreate(textScroll,"TXTS",4000,NULL,configMAX_PRIORITIES-1 ,&textScroll_t);
+  
 
   // This task can slow down things so put it a lower priority
   xTaskCreate(TaskCloudConnect
@@ -150,9 +142,12 @@ void loop()
 
 /**
  * This task ensure WiFi+RTC is ok, then fire the WebServer 
+ * This task control the Matrix
  */
 void TaskCloudConnect(void* pvParameters){
   (void) pvParameters;
+
+    matrix.loadFrame(heart);
     connectToWiFi();
     syncClock();
 
@@ -162,6 +157,8 @@ void TaskCloudConnect(void* pvParameters){
     , NULL
     , configMAX_PRIORITIES - 1 /* Give high priority */
     , &taskWebServer_Handler);
+
+     matrix.loadFrame(happy);
     // We cannot 'exit' from a task: we must invoke vTaskDelete
     vTaskDelete( NULL );
 }
@@ -209,13 +206,43 @@ void TaskBlink(void *pvParameters)  // This is a low priority task.
 }
 
 /** Generic Fading procedure
+ * The general idea is to stop at some times (like quarters)
+ * Also the led will go faster near the end of the hour, and will be slower otherwise
  */
-void TaskFadeDance(void *pvParameters){
+void TaskFadeDance(void *pvParameters){  
   const int led = ( uint32_t ) pvParameters;         // the PWM pin the LED is attached to
   int brightness = 0;  // how bright the LED is
   int fadeAmount = 10+led;  // how many points to fade the LED by, parametrized a bit by led number
   pinMode(led, OUTPUT);
   for(;;){
+
+      RTCTime currentTime;
+      RTC.getTime(currentTime); 
+      //Serial.println("Fade Time " + String(currentTime));  
+      auto current_minute=currentTime.getMinutes();
+      switch( current_minute ){
+
+        // Before clock setup its value is zero: we do not want to crash
+        case 1:        
+        case 15:
+        case 30:
+        case 45:
+          analogWrite(led,255);
+          //Serial.println("** DONG **");
+          // Wait for 1 minute
+          vTaskDelay(60 *(1000/portTICK_PERIOD_MS));
+          continue;
+          break;
+        default:
+          break;
+
+      }
+
+      // Magically move the limit and we are bright when we are around end of hour
+      int magi_limit=(255*current_minute)/59;
+
+
+
       // set the brightness of pin 9:
       analogWrite(led, brightness);
 
@@ -223,30 +250,27 @@ void TaskFadeDance(void *pvParameters){
       brightness = brightness + fadeAmount;
 
       // reverse the direction of the fading at the ends of the fade:
+      // if (brightness <= 0 || brightness >= magi_limit) {
       if (brightness <= 0 || brightness >= 255) {
         fadeAmount = -fadeAmount;
       }
       // wait for 30 milliseconds to see the dimming effect
-      vTaskDelay(30/portTICK_PERIOD_MS);
+      // We adjust it based on the current minute: it is faster during the end of the hour
+      vTaskDelay( ((59-current_minute)/2)/portTICK_PERIOD_MS);
   }
 
 }
 ////////// Melody
 // notes in the melody:
 #include "pitches.h"
+
 const int melody[] = {
-  NOTE_E6, NOTE_C6, NOTE_E6, NOTE_C6,
-  NOTE_G6, NOTE_A6, NOTE_G6, NOTE_E6,
-  NOTE_D6, NOTE_B5, NOTE_D6, NOTE_B5,
-  NOTE_E6, NOTE_C6
+  NOTE_C5, NOTE_G4, NOTE_G4, NOTE_A4, NOTE_G4, 0, NOTE_B4, NOTE_C5
 };
 
 // note durations: 4 = quarter note, 8 = eighth note, etc.:
-const int noteDurations[] = {
-  6, 4, 8, 3,
-  16, 16, 16, 8,
-  8, 4, 8, 3,
-  6, 2
+const int noteDurations[] = {  
+  4, 8, 8, 4, 4, 4, 4, 4
 };
 
 // Use of the tone() function will interfere with PWM output on pins 3 and 11
