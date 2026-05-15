@@ -1,1 +1,4 @@
 .DS_Store
+magilamp-libraries
+Magilamp/web-server.cpp
+Magilamp.ino.old

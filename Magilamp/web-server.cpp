@@ -1,5 +1,5 @@
 #include "web-server.h"
-#include "noeboat_config.h"
+#include "magilamp_config.h"
 #include <utility>
 #include <vector>
 

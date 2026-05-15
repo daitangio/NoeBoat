@@ -1,0 +1,6 @@
+Read AGENT.md
+Analyze magilamp.ino file.
+
+Modify melody and noteDurations to emit a gorgious bird-like sound.
+The sound must be happy and nice to hear even via the piezo speaker.
+The sound must be like a cucu-wall-watch

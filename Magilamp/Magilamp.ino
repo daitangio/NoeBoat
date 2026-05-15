@@ -38,7 +38,7 @@ void TaskCloudConnect(void* pvParameters);
 void TaskSystemStatus(void* pvParameters);
 
 ArduinoLEDMatrix matrix;
-void textScroll(void *pvParameters){
+void bootText(){
 
     matrix.begin();
 
@@ -52,9 +52,7 @@ void textScroll(void *pvParameters){
     matrix.endText();
 
     matrix.endDraw();
-  while(true) {  
-    vTaskDelay( (23* 1000)/  portTICK_PERIOD_MS);
-  }
+
 }
 
 // the setup function runs once when you press reset or power the board
@@ -62,6 +60,7 @@ void setup() {
   // initialize serial communication at 9600 bits per second:
   Serial.begin(57600);
   
+  bootText();
   // normally configMAX_PRIORITIES=5
   
   // Now set up two tasks to run independently.
@@ -74,7 +73,7 @@ void setup() {
     ,  &taskBlink_Handler );//Task handle
 
 
-    /*
+
 
   xTaskCreate(TaskMelodyBase
     ,"Melody"
@@ -82,7 +81,7 @@ void setup() {
     , (void*) 2 // pin 
     , 2
     ,&taskMelodyBase_Handler);
-*/
+
 
   // Two fade dancer task to kill
   xTaskCreate(
@@ -236,18 +235,24 @@ void TaskFadeDance(void *pvParameters){
 // notes in the melody:
 #include "pitches.h"
 const int melody[] = {
-  NOTE_C5, NOTE_G4, NOTE_G4, NOTE_A4, NOTE_G4, 0, NOTE_B4, NOTE_C5
+  NOTE_E6, NOTE_C6, NOTE_E6, NOTE_C6,
+  NOTE_G6, NOTE_A6, NOTE_G6, NOTE_E6,
+  NOTE_D6, NOTE_B5, NOTE_D6, NOTE_B5,
+  NOTE_E6, NOTE_C6
 };
 
 // note durations: 4 = quarter note, 8 = eighth note, etc.:
-const int noteDurations[] = {  
-  4, 8, 8, 4, 4, 4, 4, 4
+const int noteDurations[] = {
+  6, 4, 8, 3,
+  16, 16, 16, 8,
+  8, 4, 8, 3,
+  6, 2
 };
 
 // Use of the tone() function will interfere with PWM output on pins 3 and 11
 void TaskMelodyBase(void *pvParameters){
-  const int pin = ( uint32_t ) pvParameters;      
-    for (int thisNote = 0; thisNote < 8; thisNote++) {
+  const int pin = ( uint32_t ) pvParameters;
+    for (int thisNote = 0; thisNote < (int)(sizeof(melody) / sizeof(melody[0])); thisNote++) {
       // to calculate the note duration, take one second divided by the note type.
       //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
       int noteDuration = 1000 / noteDurations[thisNote];
