@@ -125,7 +125,8 @@ compile: $(ELF)
 
 $(ELF): $(SRC) $(HDRS)
 	# GG use arduino-r4 libraries
-	arduino-cli compile --verbose --libraries ../magilamp-libraries -b $(FQBN) $(VFLAG)
+	# arduino-cli compile --verbose --libraries ../magilamp-libraries -b $(FQBN) $(VFLAG)
+	arduino-cli compile --verbose -b $(FQBN) $(VFLAG)
 	
 
 help:
